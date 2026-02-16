@@ -1,0 +1,63 @@
+# Esquema de API para LUGARITMO v1.0
+# Define la estructura de consulta para datos socioeconómicos y geoespaciales
+
+"""
+Representa una unidad geográfica oficial (Sección Censal, Municipio, Provincia).
+"""
+type Territory {
+  id: ID!                     # Código INE oficial
+  name: String!               # Nombre descriptivo del área
+  level: Int!                 # 0: Nacional, 1: CCAA, 2: Provincia, 3: Municipio, 4: Sección
+  parentCode: String          # Código del territorio superior jerárquico
+  geometry: String            # GeoJSON representado como String para el mapa
+  values(indicatorId: Int, year: Int): [DataValue] # Datos asociados a este territorio
+}
+
+"""
+Definición de un indicador estadístico (ej: Renta Media, Tasa de Paro).
+"""
+type Indicator {
+  id: ID!
+  name: String!
+  unit: String!               # €, %, Ratio...
+  description: String
+  category: Category!         # Categoría a la que pertenece (Economía, Salud...)
+  isMicro: Boolean!           # Indica si tiene detalle a nivel de sección censal
+}
+
+"""
+Agrupación lógica de indicadores (las 15 categorías de LUGARITMO).
+"""
+type Category {
+  id: ID!
+  name: String!
+  icon: String                # Identificador del icono para el frontend
+  indicators: [Indicator]
+}
+
+"""
+El dato numérico final vinculado a un tiempo y espacio.
+"""
+type DataValue {
+  value: Float!
+  year: Int!
+  indicator: Indicator!
+  territory: Territory!
+}
+
+# --- Consultas (Queries) ---
+
+type Query {
+  # Obtiene todas las categorías e indicadores disponibles para los menús
+  getCatalog: [Category]
+
+  # Busca un territorio por su código INE o nombre
+  getTerritory(id: ID!): Territory
+
+  # Obtiene todos los territorios de un nivel con sus datos para pintar el mapa de calor
+  # Vital para el rendimiento del mapa
+  getMapLayer(indicatorId: ID!, year: Int!, level: Int!): [DataValue]
+
+  # Función estrella: Compara múltiples territorios para un mismo indicador
+  compareTerritories(territoryIds: [ID!]!, indicatorId: ID!, year: Int!): [DataValue]
+}

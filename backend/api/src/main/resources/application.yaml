@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: lugaritmo-api
+  profiles:
+    active: dev  # 👈 Esto es la llave que abre el otro archivo
+  graphql:
+    graphiql:
+      enabled: true
+    schema:
+      printer:
+        enabled: true

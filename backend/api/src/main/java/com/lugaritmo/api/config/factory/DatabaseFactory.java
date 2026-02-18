@@ -3,6 +3,9 @@ package com.lugaritmo.api.config.factory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+
+import java.util.Map;
 
 @Configuration
 public class DatabaseFactory {
@@ -11,11 +14,9 @@ public class DatabaseFactory {
     private String environment;
 
     @Bean
-    public DatabaseEnvironment getDatabaseEnvironment() {
-        if ("prod".equalsIgnoreCase(environment)) {
-            return new ProdDatabaseEnvironment();
-        } else {
-            return new DevDatabaseEnvironment();
-        }
+    @Primary
+    public DatabaseEnvironment getDatabaseEnvironment(Map<String, DatabaseEnvironment> environments) {
+        String key = environment.toLowerCase();
+        return environments.getOrDefault(key, environments.get("dev"));
     }
 }

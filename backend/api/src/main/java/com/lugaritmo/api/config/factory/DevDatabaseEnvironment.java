@@ -1,5 +1,8 @@
 package com.lugaritmo.api.config.factory;
 
+import org.springframework.stereotype.Component;
+
+@Component("dev")
 public class DevDatabaseEnvironment implements DatabaseEnvironment {
     @Override
     public String getUrl() {

@@ -10,7 +10,6 @@ import org.springframework.context.ConfigurableApplicationContext;
 public class ApiApplication {
 
     public static void main(String[] args) {
-        // 1. Cargamos el .env para que la fábrica sepa si es 'dev' o 'prod'
         Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
         dotenv.entries().forEach(entry -> System.setProperty(entry.getKey(), entry.getValue()));
 

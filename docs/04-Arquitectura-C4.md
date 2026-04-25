@@ -1,73 +1,75 @@
-Para que **LUGARITMO** sea una obra maestra de la ingeniería, no basta con que funcione; debe ser **robusta, mantenible y elegante**. Vamos a utilizar el **Modelo C4** para la visualización de la arquitectura y el patrón de **Arquitectura Hexagonal (Puertos y Adaptadores)** para el backend, evitando así el acoplamiento y el código "espagueti".
+# 📄 Documento 04: Arquitectura C4
 
-Aquí tienes el **Documento 04: Arquitectura del Sistema**, diseñado bajo los estándares más exigentes de la industria.
+**Proyecto:** LUGARITMO
+**Nivel de detalle:** Contexto, Contenedores y Componentes
+**Estado:** Actualizado según ADR 002 (Arquitectura REST)
 
 ---
 
-# 🏛️ Documento 04: Arquitectura y Diseño de LUGARITMO
-
-## 1. Diagrama C4 (Nivel 2: Contenedores)
-
-Este diagrama muestra cómo se dividen las responsabilidades y cómo fluye la información entre los componentes.
+## 1. Nivel 1: Diagrama de Contexto
+Este nivel describe la relación del sistema con los actores externos y las fuentes de datos oficiales.
 
 ```mermaid
 graph TD
-    User((Usuario Final)) -->|Navega/Compara| WebApp[Frontend: React 19]
-    WebApp -->|Consulta GraphQL| API[Backend: Spring Boot 3.4]
+    User((Usuario / Analista))
+    Lugaritmo[Sistema LUGARITMO]
+    INE[API Instituto Nacional de Estadística]
     
-    subgraph "Infraestructura Cloud"
-        API -->|Query Espacial SQL| DB[(Supabase: PostgreSQL + PostGIS)]
-        API -->|Carga de datos| INE_API{{API / Datos INE}}
-    end
-
-    style User fill:#f9f,stroke:#333,stroke-width:2px
-    style WebApp fill:#61dafb,stroke:#333,stroke-width:2px
-    style API fill:#6db33f,stroke:#333,stroke-width:2px
-    style DB fill:#336791,stroke:#333,stroke-width:2px
-
+    User -- "Consulta indicadores y compara regiones" --> Lugaritmo
+    Lugaritmo -- "Sincroniza datos oficiales (2025)" --> INE
 ```
 
 ---
 
-## 2. Patrones de Diseño Aplicados
+## 2. Nivel 2: Diagrama de Contenedores
+Describe las tecnologías que componen la infraestructura del proyecto y cómo se comunican entre sí mediante protocolos estándar.
 
-Para que LUGARITMO sea profesional, aplicamos estos patrones que separan la lógica de los detalles técnicos:
+```mermaid
+graph LR
+    subgraph Cliente_Frontend
+        Web[Web App - React/Mapbox]
+    end
 
-### A. Backend: Arquitectura Hexagonal (Puertos y Adaptadores)
+    subgraph Servidor_Backend_Spring_Boot
+        API[API RESTful]
+        Import[IneDataImportService]
+    end
 
-Dividiremos el código en tres capas para que la lógica de "Comparar Barrios" no dependa de si usamos Supabase o cualquier otra base de datos:
+    subgraph Persistencia
+        DB[(PostgreSQL + PostGIS)]
+    end
 
-1. **Dominio (Core):** Donde viven los modelos (`Territory`, `Indicator`) y las reglas de negocio (ej. lógica para calcular la desviación sobre la media).
-2. **Puertos (Interfaces):** Definen qué puede hacer el sistema (ej. `TerritoryRepository`).
-3. **Adaptadores (Infraestructura):** Implementaciones reales (ej. la clase que habla con Supabase o la que resuelve GraphQL).
-
-### B. Frontend: Patrón de Contenedores y Componentes
-
-* **Componentes de Presentación:** Se encargan solo de cómo se ve el mapa o el gráfico (UI limpia).
-* **Contenedores/Hooks:** Se encargan de la lógica, como pedir los datos a GraphQL y manejar el estado del mapa.
-
-### C. Estrategia de Datos: Singleton y Flyweight
-
-* Usaremos **Caché en el Cliente (Apollo Client)** para que, si el usuario vuelve a consultar la renta de un barrio que ya visitó, la app no llame al servidor, ahorrando recursos y tiempo.
-
----
-
-## 3. Guía de "Buenas Prácticas" (Anti-patrones a Evitar)
-
-Para mantener la elegancia, en **LUGARITMO** prohibimos los siguientes errores comunes:
-
-* **🚫 El Objeto Dios (God Object):** No crearemos una clase gigante llamada `LugaritmoService`. Dividiremos la lógica en servicios pequeños: `EconomyService`, `HealthService`, `GeoService`.
-* **🚫 Acoplamiento al Modelo del INE:** Los nombres de las variables en nuestro código serán claros (`rentaMedia`), nunca usaremos los códigos crípticos del INE directamente en la lógica del negocio.
-* **🚫 Anemic Domain Model:** Nuestros objetos de dominio no serán solo "bolsas de datos" (getters y setters). Tendrán comportamiento y validaciones propias.
+    Web -- "HTTPS / JSON" --> API
+    API -- "JPA / SQL" --> DB
+    Import -- "Actualiza Indicadores" --> DB
+```
 
 ---
 
-## 4. Flujo de Datos Elegante (Diagrama de Secuencia)
+## 3. Nivel 3: Diagrama de Componentes (Backend)
+Detalle interno de la lógica en Java para la gestión de las provincias y sus indicadores.
 
-¿Qué pasa cuando el usuario hace clic en un barrio?
+| Componente | Responsabilidad Técnica |
+| :--- | :--- |
+| **ProvinceController** | Define los endpoints REST. Gestiona los Query Parameters (`indicator`, `year`). |
+| **ProvinceService** | Capa de negocio. Filtra y procesa los datos antes de enviarlos al frontend. |
+| **ProvinceRepository** | Gestión de persistencia mediante Spring Data JPA y consultas espaciales. |
+| **IneImportService** | Cliente HTTP encargado de consumir los JSON oficiales del INE y poblar la DB. |
 
-1. **Frontend:** Detecta el clic y lanza una `Query` de GraphQL.
-2. **Backend:** El `Resolver` de GraphQL recibe la petición y llama al `Service` de Dominio.
-3. **Repositorio:** Realiza una consulta **PostGIS** para extraer la geometría y el valor socioeconómico en una sola operación optimizada.
-4. **Respuesta:** El dato viaja en JSON, el mapa se pinta con **MapLibre** y el gráfico con **Recharts**.
+---
 
+## 4. Flujo de Datos Principal
+Para garantizar el cumplimiento de los Requisitos No Funcionales (RNF-01), el sistema sigue este flujo:
+
+1.  **Capa de Presentación:** El usuario selecciona el indicador `housingPriceSqm` (Precio Vivienda) en el mapa.
+2.  **Capa de Aplicación:** El frontend realiza una petición asíncrona a `/api/v1/provinces?indicator=housingPriceSqm`.
+3.  **Capa de Negocio:** El backend identifica el parámetro, solicita a la base de datos solo las columnas necesarias y construye el objeto de respuesta.
+4.  **Capa de Datos:** PostgreSQL devuelve los registros filtrados por provincia.
+5.  **Cierre:** El frontend recibe el JSON y actualiza los colores del mapa de coropletas en tiempo real.
+
+---
+
+## 5. Decisiones de Diseño Clave
+* **Protocolo:** Se utiliza REST sobre HTTP/S para maximizar la compatibilidad y facilidad de testeo.
+* **Geometrías:** Las coordenadas de las provincias se almacenan en formato GeoJSON dentro de la base de datos para una renderización directa en el mapa.
+* **Escalabilidad:** El desacoplamiento entre el servicio de importación y la API permite actualizar los datos del INE sin interrumpir el servicio al usuario.
